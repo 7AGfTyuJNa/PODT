@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.28)
-project(PODT-code VERSION 0.1.0)
+project(PODT VERSION 0.1.0)
 
 include(CTest)
 enable_testing()
