@@ -20,7 +20,7 @@ void DataProcess(double &mean, double &stdev, double *Time, int cyctimes)
     stdev = stdev / mean;
 }
 
-ZZ PRF_ZZ(int prfkey, ZZ mmod)
+ZZ PRF_ZZ(const int &prfkey, const ZZ &mmod)
 {
     ZZ res;
     SetSeed(ZZ(prfkey));
@@ -28,3 +28,21 @@ ZZ PRF_ZZ(int prfkey, ZZ mmod)
     return res;
 }
 
+
+void GenerateMatrix(int m, int n, std::vector<std::vector<int>>& delta)
+{
+    srand(time(0)); // Initialize random seed
+    
+    for (int i = 0; i < m; ++i)
+    {
+        // Initialize the row with 0s
+        std::vector<int> row(n, 0);
+        
+        // Randomly select an index to set to 1
+        int randomIndex = rand() % n;
+        row[randomIndex] = 1;
+        
+        // Assign the row to the matrix
+        delta[i] = row;
+    }
+}

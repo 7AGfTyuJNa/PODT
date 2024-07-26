@@ -285,7 +285,6 @@ void DTEvaluation(vec_ZZ &pc0, vec_ZZ &pc1, vec_ZZ &vv0, vec_ZZ &vv1, TDSCPara p
     InputSelection(newx0, newx1, mat0, mat1, pk, BMT0, BMT1, x0, x1);
     t1 = GetTime() - t1;
     cout << "Pre node takes :" << t1 * 1000 << "ms\n";
-    return ;
 
     vec_ZZ cmp_res0, cmp_res1;
     cmp_res0.SetLength(y0.length());
@@ -303,14 +302,18 @@ void DTEvaluation(vec_ZZ &pc0, vec_ZZ &pc1, vec_ZZ &vv0, vec_ZZ &vv1, TDSCPara p
 
 void Decrypt(ZZ &res, vec_ZZ pc0, vec_ZZ pc1, vec_ZZ vv0, vec_ZZ vv1, TDSCPara pk)
 {
+    double t1, t2; 
+    t1 = GetTime();
     for (int i = 0; i < pk.k; ++i)
     {
         if (pc1[i] + pc0[i] == 0)
         {
             res = vv1[i] + vv0[i];
-            break;
+            // break;
         }
     }
+    t2 = GetTime() - t1;
+    cout << "Decryption :" << t2 * 1000 << "ms\n";
 }
 
 void ShareGen(ZZ &res0, ZZ &res1, ZZ modP, ZZ x)
@@ -454,34 +457,6 @@ void TDSC20_TIME_TEST(int depth, int N_attribute, int msgbit, int cyctimes)
         }
     }
 
-    int true_idx = 0;
-    while (true_idx < pk.m)
-    {
-        if (true_idx > pk.n)
-        {
-            if (X[0] > Y[true_idx])
-            {
-                true_idx = 2 * true_idx + 1;
-            }
-            else
-            {
-                true_idx = 2 * true_idx + 2;
-            }
-        }
-        else
-        {
-            if (X[true_idx] > Y[true_idx])
-            {
-                true_idx = 2 * true_idx + 1;
-            }
-            else
-            {
-                true_idx = 2 * true_idx + 2;
-            }
-        }
-    }
-    true_idx -= pk.m; // V[true_idx] is final result.
-
     // End: Random Input
 
     // Start: Client Input Test
@@ -533,16 +508,4 @@ void TDSC20_TIME_TEST(int depth, int N_attribute, int msgbit, int cyctimes)
     cout << "Decryption algo time: " << mean * 1000 << " ms  RSD: " << stdev * 100 << "%\n";
     // End: Decryption Test
 
-    if (V[true_idx] == Predict_v)
-    {
-        cout << "YES\n";
-        cout << V[true_idx] << endl;
-        cout << Predict_v << endl;
-    }
-    else
-    {
-        cout << "NO\n";
-        cout << V[true_idx] << endl;
-        cout << Predict_v << endl;
-    }
 }

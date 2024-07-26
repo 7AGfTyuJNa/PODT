@@ -21,8 +21,8 @@ void Paillier_Gen(PK &pk, ZZ &d)
     mul(temp2, pk.N, Phi_N);
     rem(d, temp1, temp2);
 
-    pk.DJN_OPEN = false;
-    pk.Pre_OPEN = false;
+    pk.DJN_OPEN = true;
+    pk.Pre_OPEN = true;
     if (pk.DJN_OPEN)
     {
         RandomBnd(h, pk.N);
@@ -31,7 +31,7 @@ void Paillier_Gen(PK &pk, ZZ &d)
     }
 }
 
-void Pailler_Enc(ZZ &ct, PK pk, ZZ x)
+void Pailler_Enc(ZZ &ct, const PK &pk, const ZZ &x)
 {
     ZZ r, temp1, temp2;
     if (pk.DJN_OPEN)
@@ -58,7 +58,7 @@ void Pailler_Enc(ZZ &ct, PK pk, ZZ x)
     MulMod(ct, temp1, temp2, pk.N2);
 }
 
-void Pailler_Dec(ZZ &x, PK pk, ZZ sk, ZZ ct)
+void Pailler_Dec(ZZ &x, const PK &pk, const ZZ &sk, const ZZ &ct)
 {
     ZZ temp;
     PowerMod(temp, ct, sk, pk.N2);
@@ -73,7 +73,7 @@ void HSS_Gen(PK &pk, EK &ek0, EK &ek1)
 
     Paillier_Gen(pk, d);
 
-    pk.k = 2;
+    pk.k = 256;
     pk.Bmsg = power2_ZZ(pk.k);
     pk.Bsk = power2_ZZ(2048-pk.k);
 
@@ -107,7 +107,7 @@ void HSS_Free(PK &pk, EK &ek0, EK &ek1)
     ek1.d_Bsk.kill();
 }
 
-void HSS_Input(Vec<ZZ> &Ix, PK pk, ZZ x)
+void HSS_Input(Vec<ZZ> &Ix, const PK &pk, const ZZ &x)
 {
     if (!Ix.length())
     {
@@ -142,7 +142,7 @@ void HSS_Input(Vec<ZZ> &Ix, PK pk, ZZ x)
     }
 }
 
-void HSS_M1Gen(Vec<ZZ> &M1, int b, PK pk, EK ek, int &prf_key) 
+void HSS_M1Gen(Vec<ZZ> &M1, int b, const PK &pk, const EK &ek, int &prf_key) 
 {
     ZZ temp1;
     temp1 = PRF_ZZ(prf_key++, pk.Bmsg);
@@ -160,14 +160,14 @@ void HSS_M1Gen(Vec<ZZ> &M1, int b, PK pk, EK ek, int &prf_key)
 }
 
 
-void HSS_ConvertInput(Vec<ZZ> &Mx, int b, PK pk, EK ek, Vec<ZZ> Ix, int &prf_key)
+void HSS_ConvertInput(Vec<ZZ> &Mx, int b, const PK &pk, const EK &ek, const Vec<ZZ> &Ix, int &prf_key)
 {
     Vec<ZZ> M1;
     HSS_M1Gen(M1, b, pk, ek, prf_key); 
     HSS_Mul(Mx, pk, ek, Ix, M1, prf_key);
 }
 
-void HSS_Mul(Vec<ZZ> &Mz, PK pk, EK ek, Vec<ZZ> Ix, Vec<ZZ> My, int &prf_key)
+void HSS_Mul(Vec<ZZ> &Mz, const PK &pk, const EK &ek, const Vec<ZZ> &Ix, const Vec<ZZ> &My, int &prf_key)
 {
     if (!Mz.length())
     {
@@ -194,7 +194,7 @@ void HSS_Mul(Vec<ZZ> &Mz, PK pk, EK ek, Vec<ZZ> Ix, Vec<ZZ> My, int &prf_key)
     }
 }
 
-void HSS_DDLog(ZZ &z, PK pk, ZZ g)
+void HSS_DDLog(ZZ &z, const PK &pk, const ZZ &g)
 {
     ZZ h1, h, temp1;
     DivRem(h1, h, g, pk.N); // h = g % N; h1 = g / N
@@ -202,7 +202,7 @@ void HSS_DDLog(ZZ &z, PK pk, ZZ g)
     MulMod(z, h1, temp1, pk.N);
 }
 
-void HSS_AddMemory(Vec<ZZ> &Mz, PK pk, Vec<ZZ> Mx, Vec<ZZ> My)
+void HSS_AddMemory(Vec<ZZ> &Mz, const PK &pk, const Vec<ZZ> &Mx, const Vec<ZZ> &My)
 {
     if (!Mz.length())
     {
@@ -215,7 +215,7 @@ void HSS_AddMemory(Vec<ZZ> &Mz, PK pk, Vec<ZZ> Mx, Vec<ZZ> My)
     }
 }
 
-void HSS_SubMemory(Vec<ZZ> &Mz, PK pk, Vec<ZZ> Mx, Vec<ZZ> My)
+void HSS_SubMemory(Vec<ZZ> &Mz, const PK &pk, const Vec<ZZ> &Mx, const Vec<ZZ> &My)
 {
     if (!Mz.length())
     {
@@ -228,8 +228,9 @@ void HSS_SubMemory(Vec<ZZ> &Mz, PK pk, Vec<ZZ> Mx, Vec<ZZ> My)
     }
 }
 
-void HSS_AddInput(Vec<ZZ> &Iz, PK pk, Vec<ZZ> Ix, Vec<ZZ> Iy)
+void HSS_AddInput(Vec<ZZ> &Iz, const PK &pk, const Vec<ZZ> &Ix, const Vec<ZZ> &Iy)
 {
+    double tt =GetTime();
     if (!Iz.length())
     {
         Iz.SetLength(pk.l + 1);
@@ -240,9 +241,11 @@ void HSS_AddInput(Vec<ZZ> &Iz, PK pk, Vec<ZZ> Ix, Vec<ZZ> Iy)
     {
         MulMod(Iz[i], Ix[i], Iy[i], pk.N2);
     }
+    //cout << 1000*(GetTime() - tt)<<endl;
 }
 
-void HSS_Evaluate(Vec<ZZ> &y_b_res, int b, Mat<ZZ> Ix, PK pk, EK ekb, int &prf_key, vector<vector<int>> F_TEST)
+void HSS_Evaluate(Vec<ZZ> &y_b_res, int b, const Mat<ZZ> &Ix, const PK & pk, const EK &ekb, int &prf_key, 
+const vector<vector<int>> &F_TEST)
 {
     y_b_res.kill();
     y_b_res.SetLength(pk.l + 1);

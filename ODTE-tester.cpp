@@ -1,258 +1,333 @@
 #include "ODTE-tester.h"
 
-void ODTE_TIME_TEST(int depth, int msgbit, int cyctimes, bool de bu g)
+void ODTE_SETUP_TEST(Para &param, EK &ek0, EK &ek1, int depth, int N_attribute, int msgbit, int cyctimes, bool debug)
 {
-    double t1, t2;
-
-    // Start: Setup Test
-    t1 = GetTime();
-
-    Para param;
-    EK ek0, ek1;
+    double *Time = new double[cyctimes];
+    double time, mean, stdev;
+    for (int i = 0; i < cyctimes; ++i)
+    {
+        time = GetTime();
+        Para paramTEST;
+        EK ek0TEST, ek1TEST;
+        paramTEST.h = depth;
+        paramTEST.k = 2 << (depth - 1);
+        paramTEST.m = paramTEST.k - 1;
+        paramTEST.t = msgbit;
+        paramTEST.n = N_attribute;
+        KeyGen(paramTEST, ek0TEST, ek1TEST);
+        Time[i] = GetTime() - time;
+    }
+    DataProcess(mean, stdev, Time, cyctimes);
+    cout << "Setup algo time: " << mean * 1000 << " ms  RSD: " << stdev * 100 << "%\n";
     param.h = depth;
     param.k = 2 << (depth - 1);
     param.m = param.k - 1;
     param.t = msgbit;
+    param.n = N_attribute;
     KeyGen(param, ek0, ek1);
+}
 
-    t2 = GetTime() - t1;
-    cout << "Setup algo time: " << t2 * 1000 << " ms\n";
-    // End: Setup Test
-
-    // Start: Random Input
-    Vec<ZZ> X, Y, V;
-    X.SetLength(param.m); // Client
-    Y.SetLength(param.m); // Provider
-    V.SetLength(param.k); // Classification
-    for (int i = 0; i < param.m; ++i)
+void ODTE_ProviderEnc_TEST(Mat<vec_ZZ> &Iy,
+                           Mat<ZZ> &Iv,
+                           Mat<vec_ZZ> &Idelta,
+                           const vec_ZZ &Y,
+                           const vec_ZZ &V,
+                           const vector<vector<int>> &delta,
+                           const Para &param, int cyctimes, bool debug)
+{
+    double *Time = new double[cyctimes];
+    double time, mean, stdev;
+    for (int i = 0; i < cyctimes; ++i)
     {
-        RandomBits(X[i], param.t);
-        RandomBits(Y[i], param.t);
-        RandomBits(V[i], param.t);
-    }
-    RandomBits(V[param.m], param.t);
-
-    int true_idx = 0;
-    while (true_idx < param.m)
-    {
-        if (X[true_idx] > Y[true_idx])
+        Iy.kill();
+        Iv.kill();
+        Idelta.kill();
+        if (!debug)
         {
-            true_idx = 2 * true_idx + 1;
+            time = GetTime();
+            ProviderEnc(Idelta, Iy, Iv, param, Y, V, delta);
+            Time[i] = GetTime() - time;
         }
         else
         {
-            true_idx = 2 * true_idx + 2;
+            time = GetTime();
+            RandomProviderEnc(Iy, Iv, Idelta, param);
+            Time[i] = GetTime() - time;
         }
     }
-    true_idx -= param.m; // V[true_idx] is final result.
+    DataProcess(mean, stdev, Time, cyctimes);
+    cout << "Provider Enc time: " << mean * 1000 << " ms  RSD: " << stdev * 100 << "%\n";
+}
 
-    // End: Random Input
+void RandomProviderEnc(Mat<vec_ZZ> &Iy,
+                       Mat<ZZ> &Iv,
+                       Mat<vec_ZZ> &Idelta,
+                       const Para &param)
+{
 
-    // Start: Client Input Test
-    t1 = GetTime();
-
-    vector<Mat<ZZ>> Ix;
-    if (debug)
+    int i, j, k;
+    vec_ZZ tmp;
+    tmp.SetLength(param.pk.l + 1);
+    Iy.SetDims(param.m, param.t);
+    for (i = 0; i < param.m; ++i)
     {
-        for (int i = 0; i < X.length(); ++i)
-        {
-            Mat<ZZ> tmp;
-            tmp.SetDims(param.t, param.pk.l + 1);
-            for (int j = 0; j < param.t; ++j)
-            {
-                for (int k = 0; k < param.pk.l + 1; ++k)
-                {
-                    RandomBnd(tmp[j][k], param.pk.N2);
-                }
-            }
-            Ix.push_back(tmp);
-        }
-    }
-    else
-    {
-        Mat<ZZ> tmp;
-        tmp.SetDims(param.t, param.pk.l + 1);
-        for (int i = 0; i < param.m; ++i)
-        {
-            for (int j = 0; j < param.t; ++j)
-            {
-                HSS_Input(tmp[j], param.pk, ZZ(bit(X[i], j)));
-            }
-            Ix.push_back(tmp);
-        }
-    }
-
-    t2 = GetTime() - t1;
-    cout << "Client Input algo time: " << t2 * 1000 << " ms\n";
-    // End: Client Input Test
-
-    // Start: Provider Input Test
-    t1 = GetTime();
-    vector<Mat<ZZ>> Iy;
-    Mat<ZZ> Iv;
-    // ProviderEnc(Iy, Iv, param, Y, V);
-    if (debug)
-    {
-        for (int i = 0; i < Y.length(); ++i)
-        {
-            Mat<ZZ> tmp;
-            tmp.SetDims(param.t, param.pk.l + 1);
-            for (int j = 0; j < param.t; ++j)
-            {
-                for (int k = 0; k < param.pk.l + 1; ++k)
-                {
-                    RandomBnd(tmp[j][k], param.pk.N);
-                }
-            }
-            Iy.push_back(tmp);
-        }
-
-        Iv.SetDims(param.k, param.pk.l + 1);
-        for (int j = 0; j < param.k; ++j)
+        for (j = 0; j < param.t; ++j)
         {
             for (int k = 0; k < param.pk.l + 1; ++k)
             {
-                RandomBnd(Iv[j][k], param.pk.N);
+                RandomBnd(tmp[k], param.pk.N);
             }
+            Iy[i][j] = tmp;
         }
     }
-    else
-    {
-        Mat<ZZ> tmp;
-        tmp.SetDims(param.t, param.pk.l + 1);
-        for (int i = 0; i < param.m; ++i)
-        {
-            for (int j = 0; j < param.t; ++j)
-            {
-                HSS_Input(tmp[j], param.pk, ZZ(bit(Y[i], j)));
-            }
-            Iy.push_back(tmp);
-        }
 
-        Iv.SetDims(param.k, param.pk.l + 1);
-        for (int j = 0; j < param.k; ++j)
+    Iv.SetDims(param.k, param.pk.l + 1);
+    for (int j = 0; j < param.k; ++j)
+    {
+        for (int k = 0; k < param.pk.l + 1; ++k)
         {
-            HSS_Input(Iv[j], param.pk, V[j]);
+            RandomBnd(Iv[j][k], param.pk.N);
         }
     }
-    t2 = GetTime() - t1;
-    cout << "Provider Input algo time: " << t2 * 1000 << " ms\n";
+
+    Idelta.SetDims(param.m, param.n);
+    for (int i = 0; i < param.m; ++i)
+    {
+        for (int j = 0; j < param.n; ++j)
+        {
+            for (int k = 0; k < param.pk.l + 1; ++k)
+            {
+                RandomBnd(tmp[k], param.pk.N);
+            }
+            Idelta[i][j] = tmp;
+        }
+    }
+}
+
+void ODTE_DATA_PREPARATION(Vec<ZZ> &X, Vec<ZZ> &Y, Vec<ZZ> &V, vector<vector<int>> &delta, const Para &param)
+{
+    X.SetLength(param.n); // Feature vector
+    Y.SetLength(param.m); // Threshold value
+    V.SetLength(param.k); // Classification
+    delta.assign(param.m, std::vector<int>(param.n, 0));
+    GenerateMatrix(param.m, param.n, delta);
+    for (int i = 0; i < param.n; ++i)
+    {
+        RandomBits(X[i], param.t);
+    }
+
+    for (int i = 0; i < param.m; ++i)
+    {
+        RandomBits(Y[i], param.t);
+    }
+    for (int i = 0; i < param.k; ++i)
+    {
+        RandomBits(V[i], param.t);
+    }
+}
+
+void ODTE_FeatureSelection2_TEST(Mat<vec_ZZ> &Ix,
+                                 const Mat<vec_ZZ> &Idelta,
+                                 const vec_ZZ &X,
+                                 const Para &param, int cyctimes, bool debug)
+{
+    double *Time = new double[cyctimes];
+    double time, mean, stdev;
+    for (int i = 0; i < cyctimes; ++i)
+    {
+        Ix.kill();
+        time = GetTime();
+        FeatureSelection2(Ix, param, X, Idelta);
+        Time[i] = GetTime() - time;
+    }
+    DataProcess(mean, stdev, Time, cyctimes);
+    cout << "Feature Selection time: " << mean * 1000 << " ms  RSD: " << stdev * 100 << "%\n";
+}
+
+void ODTE_HSSCMP_TEST(const Para &param, int b, const EK &ek0, const EK &ek1, int cyctimes)
+{
+    int prf_key = 0;
+    Vec<vec_ZZ> Ix, Iy;
+    ZZ c_b, x, y;
+    RandomBits(x, param.t);
+    RandomBits(y, param.t);
+
+    vec_ZZ tmp;
+    for (int i = 0; i < param.t; ++i)
+    {
+        HSS_Input(tmp, param.pk, ZZ(bit(x, i)));
+        Ix.append(tmp);
+        HSS_Input(tmp, param.pk, ZZ(bit(y, i)));
+        Iy.append(tmp);
+    }
+
+    EK ekb;
+    ekb = b ? ek1 : ek0;
+    Vec<ZZ> M1_b;
+    HSS_M1Gen(M1_b, b, param.pk, ekb, prf_key);
+
+    double *Time = new double[cyctimes];
+    double time, mean, stdev;
+    for (int i = 0; i < cyctimes; ++i)
+    {
+        time = GetTime();
+        HSSCMP(c_b, b, param, ekb, Ix, Iy, prf_key, M1_b);
+        Time[i] = GetTime() - time;
+    }
+    DataProcess(mean, stdev, Time, cyctimes);
+    cout << "HSSCMP time: " << mean * 1000 << " ms  RSD: " << stdev * 100 << "%\n";
+}
+
+void ODTE_ClassificationGen_TEST(const Para &param, int b, const EK &ek0, const EK &ek1, int cyctimes)
+{
+    Vec<ZZ> cmp_resb;
+    cmp_resb.SetLength(param.m);
+
+    for (int i = 0; i < param.m; ++i)
+    {
+        RandomBits(cmp_resb[i], 1);
+    }
+
+    int prf_key = 0;
+    EK ekb;
+    ekb = b ? ek1 : ek0;
+    Vec<ZZ> M1_b;
+    HSS_M1Gen(M1_b, b, param.pk, ekb, prf_key);
+    vec_ZZ pcb, vvb;
+
+    vec_ZZ V;
+    V.SetLength(param.k); // Classification
+    for (int i = 0; i < param.k; ++i)
+    {
+        RandomBits(V[i], param.t);
+    }
+    Mat<ZZ> Iv;
+    Iv.SetDims(param.k, param.pk.l + 1);
+    for (int j = 0; j < param.k; ++j)
+    {
+        for (int k = 0; k < param.pk.l + 1; ++k)
+        {
+            RandomBnd(Iv[j][k], param.pk.N);
+        }
+    }
+
+    double *Time = new double[cyctimes];
+    double time, mean, stdev;
+    for (int i = 0; i < cyctimes; ++i)
+    {
+        pcb.kill();
+        vvb.kill();
+        time = GetTime();
+        ClassificationGen(pcb, vvb, b, param, ekb, cmp_resb, Iv, M1_b, prf_key);
+        Time[i] = GetTime() - time;
+    }
+    DataProcess(mean, stdev, Time, cyctimes);
+    cout << "ClassificationGen time: " << mean * 1000 << " ms  RSD: " << stdev * 100 << "%\n";
+}
+
+void ODTE_DTEvaluation_TEST(Vec<ZZ> &pc0, Vec<ZZ> &vv0, Vec<ZZ> &pc1, Vec<ZZ> &vv1,
+                            const Para &param, const EK &ek0, const EK &ek1, const Mat<vec_ZZ> &Ix, const Mat<vec_ZZ> &Iy, const Mat<ZZ> &Iv,
+                            int cyctimes)
+{
+    double *Time = new double[cyctimes];
+    double time, mean, stdev;
+    for (int i = 0; i < cyctimes; ++i)
+    {
+        pc0.kill();
+        vv0.kill();
+        time = GetTime();
+        DTEvaluation(pc0, vv0, 0, param, ek0, Ix, Iy, Iv);
+        Time[i] = GetTime() - time;
+    }
+    DataProcess(mean, stdev, Time, cyctimes);
+    cout << "DTevaluation 0 time: " << mean * 1000 << " ms  RSD: " << stdev * 100 << "%\n";
+
+    for (int i = 0; i < cyctimes; ++i)
+    {
+        pc1.kill();
+        vv1.kill();
+        time = GetTime();
+        DTEvaluation(pc1, vv1, 1, param, ek1, Ix, Iy, Iv);
+        Time[i] = GetTime() - time;
+    }
+    DataProcess(mean, stdev, Time, cyctimes);
+    cout << "DTevaluation 1 time: " << mean * 1000 << " ms  RSD: " << stdev * 100 << "%\n";
+}
+
+void ODTE_Decryption_TEST(ZZ &res, const Para &param, const Vec<ZZ> &pc_0, const Vec<ZZ> &vv_0, const Vec<ZZ> &pc_1, const Vec<ZZ> &vv_1, int cyctimes)
+{
+    double *Time = new double[cyctimes];
+    double time, mean, stdev;
+    for (int i = 0; i < cyctimes; ++i)
+    {
+        time = GetTime();
+        ClDecryption(res, param, pc_0, vv_0, pc_1, vv_1);
+        Time[i] = GetTime() - time;
+    }
+    DataProcess(mean, stdev, Time, cyctimes);
+    cout << "Decryption time: " << mean * 1000 << " ms  RSD: " << stdev * 100 << "%\n";
+}
+
+void ODTE_TIME_TEST(int depth, int N_attribute, int msgbit, int cyctimes, bool debug)
+{
+    // Start: Setup Test
+    Para param;
+    EK ek0, ek1;
+    ODTE_SETUP_TEST(param, ek0, ek1, depth, N_attribute, msgbit, cyctimes, debug);
+    // End: Setup Test
+
+    ODTE_ClassificationGen_TEST(param, 0, ek0, ek1, 10);
+    return;
+
+    // Start: Random Input
+    Vec<ZZ> X, Y, V;
+    vector<std::vector<int>> delta;
+    ODTE_DATA_PREPARATION(X, Y, V, delta, param);
+    // End: Random Input
+
+    // Start: Provider Input Test
+    Mat<vec_ZZ> Iy;
+    Mat<ZZ> Iv;
+    Mat<vec_ZZ> Idelta;
+    ODTE_ProviderEnc_TEST(Iy, Iv, Idelta, Y, V, delta, param, cyctimes, debug);
     // End: Provider Input Test
 
-    // Start: Evaluation 0 Test
-    t1 = GetTime();
-    vec_ZZ pc0, vv0;
-    int prf_key = 0;
+    // Start: Feature Selection Test
+    Mat<vec_ZZ> Ix;
+    ODTE_FeatureSelection2_TEST(Ix, Idelta, X, param, cyctimes, debug);
+    // End: Client Input Test
+    // if (debug)
+    // {
+    //     for (int i = 0; i < Y.length(); ++i) // after feature selection, #X=#Y
+    //     {
+    //         Mat<ZZ> tmp;
+    //         tmp.SetDims(param.t, param.pk.l + 1);
+    //         for (int j = 0; j < param.t; ++j)
+    //         {
+    //             for (int k = 0; k < param.pk.l + 1; ++k)
+    //             {
+    //                 RandomBnd(tmp[j][k], param.pk.N2);
+    //             }
+    //         }
+    //         Ix.push_back(tmp);
+    //     }
+    // }
 
-    Vec<ZZ> M1_0, cmp_res0;
-    HSS_M1Gen(M1_0, 0, param.pk, ek0, prf_key);
+    // Start: HSSCMP Test
+    ODTE_HSSCMP_TEST(param, 0, ek0, ek1, cyctimes);
+    // End: HSSCMP Test
 
-    cmp_res0.SetLength(param.m);
-    double tx = GetTime() - t1;
-    cout << "Previous Node eval algo time: " << tx * 1000 << " ms\n";
+    // Start: ClassificationGen Test
+    ODTE_ClassificationGen_TEST(param, 0, ek0, ek1, cyctimes);
+    // End: ClassificationGen Test
 
-    for (int j = 0; j < param.m; ++j)
-    {
-        double tt = GetTime();
-        Vec<ZZ> Mxb, Mxyb, Mcb;
-        HSS_Mul(Mxb, param.pk, ek0, Ix[j][0], M1_0, prf_key);
-        HSS_Mul(Mxyb, param.pk, ek0, Iy[j][0], Mxb, prf_key);
-        HSS_SubMemory(Mcb, param.pk, Mxb, Mxyb);
-
-        for (int i = 1; i < param.t; ++i)
-        {
-            Vec<ZZ> Mcxb, Mcyb, Mcxyb;
-
-            HSS_Mul(Mcxb, param.pk, ek0, Ix[j][i], Mcb, prf_key);
-            HSS_Mul(Mcyb, param.pk, ek0, Iy[j][i], Mcb, prf_key);
-            HSS_Mul(Mcxyb, param.pk, ek0, Ix[j][i], Mcyb, prf_key);
-            HSS_Mul(Mxb, param.pk, ek0, Ix[j][i], M1_0, prf_key);
-            HSS_Mul(Mxyb, param.pk, ek0, Iy[j][i], Mxb, prf_key);
-
-            HSS_SubMemory(Mcb, param.pk, Mcb, Mcxb);
-            HSS_SubMemory(Mcb, param.pk, Mcb, Mcyb);
-            HSS_AddMemory(Mcb, param.pk, Mcb, Mcxyb);
-            HSS_AddMemory(Mcb, param.pk, Mcb, Mcxyb);
-            HSS_AddMemory(Mcb, param.pk, Mcb, Mxb);
-            HSS_SubMemory(Mcb, param.pk, Mcb, Mxyb);
-        }
-        cmp_res0[j] = Mcb[0];
-        tt = GetTime() - tt;
-        cout << "Each Node need time: " << tt * 1000 << " ms\n";
-    }
-
-    for (int j = 0; j < param.m; ++j)
-    {
-        RandomBnd(cmp_res0[j], param.pk.N);
-    }
-    double ttt = GetTime();
-    ClassificationGen(pc0, vv0, 0, param, ek0, cmp_res0, Iv, M1_0, prf_key);
-    ttt = GetTime() - ttt;
-    cout << "Classification algo time: " << ttt * 1000 << " ms\n";
-
-    t2 = GetTime() - t1;
-    cout << "Evaluate0 algo time: " << t2 * 1000 << " ms\n";
-    // End: Evaluation 0 Test
-
-    // Start: Evaluation 1 Test
-    vec_ZZ pc1, vv1;
-    prf_key = 0;
-    t1 = GetTime();
-    Vec<ZZ> M1_1, cmp_res1;
-    HSS_M1Gen(M1_1, 1, param.pk, ek1, prf_key);
-
-    cmp_res1.SetLength(param.m);
-    for (int j = 0; j < param.m; ++j)
-    {
-        Vec<ZZ> Mxb, Mxyb, Mcb;
-        HSS_Mul(Mxb, param.pk, ek0, Ix[j][0], M1_1, prf_key);
-        HSS_Mul(Mxyb, param.pk, ek0, Iy[j][0], Mxb, prf_key);
-        HSS_SubMemory(Mcb, param.pk, Mxb, Mxyb);
-
-        for (int i = 1; i < param.t; ++i)
-        {
-            Vec<ZZ> Mcxb, Mcyb, Mcxyb;
-
-            HSS_Mul(Mcxb, param.pk, ek0, Ix[j][i], Mcb, prf_key);
-            HSS_Mul(Mcyb, param.pk, ek0, Iy[j][i], Mcb, prf_key);
-            HSS_Mul(Mcxyb, param.pk, ek0, Ix[j][i], Mcyb, prf_key);
-            HSS_Mul(Mxb, param.pk, ek0, Ix[j][i], M1_1, prf_key);
-            HSS_Mul(Mxyb, param.pk, ek0, Iy[j][i], Mxb, prf_key);
-
-            HSS_SubMemory(Mcb, param.pk, Mcb, Mcxb);
-            HSS_SubMemory(Mcb, param.pk, Mcb, Mcyb);
-            HSS_AddMemory(Mcb, param.pk, Mcb, Mcxyb);
-            HSS_AddMemory(Mcb, param.pk, Mcb, Mcxyb);
-            HSS_AddMemory(Mcb, param.pk, Mcb, Mxb);
-            HSS_SubMemory(Mcb, param.pk, Mcb, Mxyb);
-        }
-        cmp_res1[j] = Mcb[0];
-    }
-
-    ClassificationGen(pc1, vv1, 1, param, ek1, cmp_res1, Iv, M1_1, prf_key);
-
-    t2 = GetTime() - t1;
-    cout << "Evaluate1 algo time: " << t2 * 1000 << " ms\n";
-    // End: Evaluation 1 Test
+    // Start: Evaluation Test
+    vec_ZZ pc0, vv0, pc1, vv1;
+    ODTE_DTEvaluation_TEST(pc0, vv0, pc1, vv1, param, ek0, ek1, Ix, Iy, Iv, cyctimes);
+    // End: Evaluation Test
 
     // Start: Decryption Test
     ZZ Predict_v;
-    t1 = GetTime();
-    ClDecryption(Predict_v, param, pc0, vv0, pc1, vv1);
-    t2 = GetTime() - t1;
-    cout << "Decryption algo time: " << t2 * 1000 << " ms\n";
+    ODTE_Decryption_TEST(Predict_v, param, pc0, vv0, pc1, vv1, cyctimes);
     // End: Decryption Test
-
-    if (V[true_idx] == Predict_v)
-    {
-        cout << "YES\n";
-        cout << V[true_idx] << endl;
-        cout << Predict_v << endl;
-    }
-    else
-    {
-        cout << "NO\n";
-        cout << V[true_idx] << endl;
-        cout << Predict_v << endl;
-    }
 }
