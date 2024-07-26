@@ -98,8 +98,6 @@ void ClassificationGen(Vec<ZZ> &pc_b, Vec<ZZ> &vv_b, int b, const Para &param, c
 
     for (int i = 0; i < param.k; ++i)
     {
-        double tt;
-        tt = GetTime();
         HSS_Mul(vb, param.pk, ekb, Iv[i], M1, prf_key);
 
         // compute pc_k
@@ -130,8 +128,6 @@ void ClassificationGen(Vec<ZZ> &pc_b, Vec<ZZ> &vv_b, int b, const Para &param, c
 
         pc_b.append(pc);
         vv_b.append(v);
-        tt = GetTime() - tt;
-        cout << tt *1000<< endl;
     }
 }
 

@@ -276,9 +276,6 @@ void ODTE_TIME_TEST(int depth, int N_attribute, int msgbit, int cyctimes, bool d
     ODTE_SETUP_TEST(param, ek0, ek1, depth, N_attribute, msgbit, cyctimes, debug);
     // End: Setup Test
 
-    ODTE_ClassificationGen_TEST(param, 0, ek0, ek1, 10);
-    return;
-
     // Start: Random Input
     Vec<ZZ> X, Y, V;
     vector<std::vector<int>> delta;
