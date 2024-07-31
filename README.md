@@ -8,7 +8,7 @@ This codebase is part of the PODTE paper.
 
 ## Setup and Building Instructions
 
-First, install the libraries [NTL](https://libntl.org/doc/tour-unix.html) and [relic](https://github.com/relic-toolkit/relic/wiki/Building) required by PODTE. On several Ubuntu systems this can be done directly through links above.
+First, install the libraries [NTL](https://libntl.org/doc/tour-unix.html) required by PODTE. On several Ubuntu systems this can be done directly through links above.
 
 To build library and executables:
 ```shell
